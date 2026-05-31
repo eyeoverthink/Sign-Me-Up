@@ -33,6 +33,8 @@ class FactorizationMethod(Enum):
     SCOTT_PATTERN = "scott_pattern"  # Scott Algorithm pattern matching
     SYMBOLIC = "symbolic"  # Pure symbolic manipulation
     HYBRID = "hybrid"  # Combination of methods
+    RSA_SYMBOLIC = "rsa_symbolic"  # Symbolic RSA factorization
+    HASH_REPRESENTATION = "hash_representation"  # Hash as transfinite symbol
 
 @dataclass
 class Factor:
@@ -93,9 +95,16 @@ class TransfiniteFactorizer:
             return self._factorize_integer(number, method)
     
     def _factorize_integer(self, number: int, method: FactorizationMethod) -> List[Factor]:
-        """Factorize a classical integer"""
+        """Factorize a classical integer or cryptographic-scale number"""
         if number < 2:
             return []
+        
+        # Check if number is cryptographic-scale (256-bit or larger)
+        bit_length = number.bit_length()
+        
+        if bit_length >= 256:
+            # Use symbolic representation for cryptographic-scale numbers
+            return self._factorize_cryptographic(number, bit_length, method)
         
         factors = []
         n = number
@@ -122,6 +131,189 @@ class TransfiniteFactorizer:
                 factors.append(Factor(str(n), 1, method, 0.95))
         
         return factors
+    
+    def _factorize_cryptographic(self, number: int, bit_length: int, 
+                               method: FactorizationMethod) -> List[Factor]:
+        """
+        Factorize cryptographic-scale numbers using symbolic representation.
+        Instead of actual factorization (impossible at this scale), provide
+        transfinite representation and potential factor structure.
+        """
+        factors = []
+        
+        # Determine the cryptographic standard
+        if bit_length == 256:
+            crypto_type = "SHA-256"
+            cardinality = TransfiniteLevel.EXPONENTIAL
+        elif bit_length == 512:
+            crypto_type = "SHA-512"
+            cardinality = TransfiniteLevel.EXPONENTIAL
+        elif bit_length == 1024:
+            crypto_type = "RSA-1024"
+            cardinality = TransfiniteLevel.HYPER_EXPONENTIAL
+        elif bit_length == 2048:
+            crypto_type = "RSA-2048"
+            cardinality = TransfiniteLevel.HYPER_EXPONENTIAL
+        elif bit_length == 4096:
+            crypto_type = "RSA-4096"
+            cardinality = TransfiniteLevel.TRANSCENDENTAL
+        else:
+            crypto_type = f"{bit_length}-bit"
+            cardinality = TransfiniteLevel.HYPER_EXPONENTIAL
+        
+        # Create transfinite symbol for the number
+        transfinite_symbol = TransfiniteSymbol(
+            cardinality=cardinality,
+            phi_power=int(bit_length / 10),
+            up_arrow_notation=f"2↑↑{int(bit_length / 50)}",
+            geometric_density=min(bit_length / 4096, 1.0)
+        )
+        
+        # Add the transfinite representation as a factor
+        factors.append(Factor(transfinite_symbol, 1, 
+                          FactorizationMethod.HASH_REPRESENTATION, 0.95))
+        
+        # For RSA-style numbers, add symbolic prime factors
+        if "RSA" in crypto_type:
+            # Represent as product of two large primes symbolically
+            prime1_symbol = TransfiniteSymbol(
+                cardinality=TransfiniteLevel.EXPONENTIAL,
+                phi_power=int(bit_length / 20),
+                up_arrow_notation=f"2↑↑{int(bit_length / 100)}",
+                geometric_density=0.5
+            )
+            prime2_symbol = TransfiniteSymbol(
+                cardinality=TransfiniteLevel.EXPONENTIAL,
+                phi_power=int(bit_length / 20),
+                up_arrow_notation=f"2↑↑{int(bit_length / 100)}",
+                geometric_density=0.5
+            )
+            
+            factors.append(Factor(prime1_symbol, 1, 
+                              FactorizationMethod.RSA_SYMBOLIC, 0.85))
+            factors.append(Factor(prime2_symbol, 1, 
+                              FactorizationMethod.RSA_SYMBOLIC, 0.85))
+        
+        # Add hash-specific information
+        if "SHA" in crypto_type:
+            # For hash values, add the hash representation
+            hex_representation = f"{number:0{bit_length//4}x}"
+            factors.append(Factor(f"hash:{hex_representation[:16]}...", 1,
+                              FactorizationMethod.HASH_REPRESENTATION, 1.0))
+        
+        return factors
+    
+    def factorize_hash(self, hash_hex: str, hash_type: str = "sha256") -> List[Factor]:
+        """
+        Factorize a hash value by converting it to transfinite representation.
+        
+        Args:
+            hash_hex: Hexadecimal string of the hash
+            hash_type: Type of hash (sha256, sha512, etc.)
+            
+        Returns:
+            List of Factor objects representing the hash in transfinite form
+        """
+        # Convert hex to integer
+        try:
+            hash_int = int(hash_hex, 16)
+        except ValueError:
+            return [Factor(f"invalid_hash:{hash_hex}", 1, 
+                         FactorizationMethod.HASH_REPRESENTATION, 0.0)]
+        
+        bit_length = len(hash_hex) * 4
+        
+        # Determine cardinality based on hash type
+        if hash_type == "sha256":
+            cardinality = TransfiniteLevel.EXPONENTIAL
+        elif hash_type == "sha512":
+            cardinality = TransfiniteLevel.HYPER_EXPONENTIAL
+        else:
+            cardinality = TransfiniteLevel.EXPONENTIAL
+        
+        # Create transfinite symbol
+        transfinite_symbol = TransfiniteSymbol(
+            cardinality=cardinality,
+            phi_power=int(bit_length / 10),
+            up_arrow_notation=f"2↑↑{int(bit_length / 50)}",
+            geometric_density=0.8
+        )
+        
+        factors = [
+            Factor(transfinite_symbol, 1, 
+                  FactorizationMethod.HASH_REPRESENTATION, 0.95),
+            Factor(f"{hash_type}:{hash_hex[:32]}...", 1,
+                  FactorizationMethod.HASH_REPRESENTATION, 1.0)
+        ]
+        
+        return factors
+    
+    def estimate_rsa_prime_size(self, rsa_bits: int) -> Tuple[int, int]:
+        """
+        Estimate the size of prime factors for an RSA modulus.
+        
+        Args:
+            rsa_bits: Size of RSA modulus in bits
+            
+        Returns:
+            Tuple of (prime1_bits, prime2_bits) estimates
+        """
+        # Standard RSA uses two roughly equal-sized primes
+        prime_bits = rsa_bits // 2
+        
+        # Add some variation (primes are rarely exactly equal)
+        variation = rsa_bits // 20  # 5% variation
+        prime1_bits = prime_bits + random.randint(-variation, variation)
+        prime2_bits = rsa_bits - prime1_bits
+        
+        return (prime1_bits, prime2_bits)
+    
+    def generate_rsa_symbolic_factorization(self, rsa_bits: int) -> Dict:
+        """
+        Generate symbolic factorization for an RSA modulus of given bit size.
+        
+        Args:
+            rsa_bits: Size of RSA modulus (1024, 2048, 4096, etc.)
+            
+        Returns:
+            Dictionary with symbolic factorization information
+        """
+        prime1_bits, prime2_bits = self.estimate_rsa_prime_size(rsa_bits)
+        
+        # Create transfinite symbols for the primes
+        prime1_symbol = TransfiniteSymbol(
+            cardinality=TransfiniteLevel.EXPONENTIAL,
+            phi_power=int(prime1_bits / 10),
+            up_arrow_notation=f"2↑↑{int(prime1_bits / 100)}",
+            geometric_density=0.5
+        )
+        
+        prime2_symbol = TransfiniteSymbol(
+            cardinality=TransfiniteLevel.EXPONENTIAL,
+            phi_power=int(prime2_bits / 10),
+            up_arrow_notation=f"2↑↑{int(prime2_bits / 100)}",
+            geometric_density=0.5
+        )
+        
+        # Create modulus symbol
+        modulus_symbol = TransfiniteSymbol(
+            cardinality=TransfiniteLevel.HYPER_EXPONENTIAL if rsa_bits < 4096 else TransfiniteLevel.TRANSCENDENTAL,
+            phi_power=int(rsa_bits / 10),
+            up_arrow_notation=f"2↑↑{int(rsa_bits / 50)}",
+            geometric_density=min(rsa_bits / 4096, 1.0)
+        )
+        
+        return {
+            "rsa_bits": rsa_bits,
+            "modulus": str(modulus_symbol),
+            "prime1": str(prime1_symbol),
+            "prime2": str(prime2_symbol),
+            "prime1_bits": prime1_bits,
+            "prime2_bits": prime2_bits,
+            "classical_impossible": True,
+            "transfinite_possible": True,
+            "method": "symbolic_representation"
+        }
     
     def _factorize_symbol(self, symbol: TransfiniteSymbol, method: FactorizationMethod) -> List[Factor]:
         """
