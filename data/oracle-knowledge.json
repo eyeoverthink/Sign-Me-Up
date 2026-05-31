@@ -1,0 +1,35 @@
+[
+  {
+    "id": "kb-1769933204646-q75oxq",
+    "type": "text",
+    "title": "QR Memory System",
+    "content": "Vaughn Scott Infinite Memory QR System: Uses phi-harmonic chunking across multiple QR frames with gradient color encoding, 3D depth mapping, and holographic layers for multi-dimensional data storage.",
+    "source": "manual",
+    "addedAt": 1769933204646,
+    "chunks": [
+      "Vaughn Scott Infinite Memory QR System: Uses phi-harmonic chunking across multiple QR frames with gradient color encoding, 3D depth mapping, and holographic layers for multi-dimensional data storage."
+    ]
+  },
+  {
+    "id": "kb-1769934236065-wkzvk5",
+    "type": "text",
+    "title": "Test Knowledge",
+    "content": "This is test content for database persistence.",
+    "source": "manual",
+    "addedAt": 1769934236065,
+    "chunks": [
+      "This is test content for database persistence."
+    ]
+  },
+  {
+    "id": "kb-1769934376186-zce8fr",
+    "type": "text",
+    "title": "Test PDF Knowledge mtlCo6",
+    "content": "This is test content for the Oracle knowledge base. Testing database and JSON persistence.",
+    "source": "manual",
+    "addedAt": 1769934376186,
+    "chunks": [
+      "This is test content for the Oracle knowledge base. Testing database and JSON persistence."
+    ]
+  }
+]
