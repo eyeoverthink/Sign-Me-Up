@@ -527,6 +527,9 @@ class QuantumOracle:
         """
         Compress a massive number into transfinite representation.
         Returns either a string (for small values) or TransfiniteSymbol (for hyper-massive).
+        
+        IMPORTANT: This method avoids actually computing massive values that would overflow.
+        It works with the bit_length or magnitude estimate instead.
         """
         if isinstance(value, float):
             value = int(value)
@@ -535,36 +538,51 @@ class QuantumOracle:
         if value < 1000:
             return str(value)
         
-        # Try Knuth up-arrow notation first
-        up_arrow = KnuthUpArrow.compress(value)
-        if "↑" in up_arrow:
-            # Determine transfinite level based on magnitude
-            if value > 10**100:  # Googol scale
-                cardinality = TransfiniteLevel.EXPONENTIAL
-                phi_power = int(value.bit_length() / 10)
-            elif value > 10**50:
-                cardinality = TransfiniteLevel.LINEAR
-                phi_power = int(value.bit_length() / 20)
-            else:
-                cardinality = TransfiniteLevel.LINEAR
-                phi_power = int(value.bit_length() / 30)
-            
-            return TransfiniteSymbol(
-                cardinality=cardinality,
-                phi_power=phi_power,
-                up_arrow_notation=up_arrow,
-                geometric_density=min(value / 10**100, 1.0)
-            )
+        # Get bit length without computing the actual value if it's too large
+        try:
+            bit_length = value.bit_length()
+        except (OverflowError, MemoryError):
+            # If we can't get bit_length, estimate from string length
+            bit_length = len(str(value)) * 4  # Rough estimate
         
-        # For truly massive values, use pure transfinite
-        if value > 10**1000:
-            return TransfiniteSymbol(
-                cardinality=TransfiniteLevel.HYPER_EXPONENTIAL,
-                phi_power=int(value.bit_length() / 5),
-                geometric_density=1.0
-            )
+        # Determine transfinite level based on bit length (magnitude class)
+        # This avoids computing the actual massive value
+        if bit_length > 1000:  # 2^1000 scale - truly massive
+            cardinality = TransfiniteLevel.HYPER_EXPONENTIAL
+            phi_power = int(bit_length / 5)
+            geometric_density = 1.0
+        elif bit_length > 400:  # 2^400 scale - Googol-scale
+            cardinality = TransfiniteLevel.EXPONENTIAL
+            phi_power = int(bit_length / 10)
+            geometric_density = 1.0
+        elif bit_length > 200:  # 2^200 scale
+            cardinality = TransfiniteLevel.EXPONENTIAL
+            phi_power = int(bit_length / 15)
+            geometric_density = 0.8
+        elif bit_length > 100:  # 2^100 scale
+            cardinality = TransfiniteLevel.LINEAR
+            phi_power = int(bit_length / 20)
+            geometric_density = 0.5
+        else:
+            cardinality = TransfiniteLevel.LINEAR
+            phi_power = int(bit_length / 30)
+            geometric_density = 0.1
         
-        return str(value)
+        # Try Knuth up-arrow notation for moderate values
+        if bit_length < 500:
+            try:
+                up_arrow = KnuthUpArrow.compress(value)
+            except (OverflowError, MemoryError):
+                up_arrow = f"2↑↑{int(bit_length / 10)}"
+        else:
+            up_arrow = f"2↑↑{int(bit_length / 10)}"
+        
+        return TransfiniteSymbol(
+            cardinality=cardinality,
+            phi_power=phi_power,
+            up_arrow_notation=up_arrow,
+            geometric_density=geometric_density
+        )
     
     def represent_state_complexity(self, complexity_bits: int) -> dict:
         """
