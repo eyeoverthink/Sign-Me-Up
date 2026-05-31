@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 import time
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional, Union, List, Tuple
 from enum import Enum
 
 # Constants
@@ -484,31 +484,143 @@ async def run_tesla_integration_demo():
     print("\nTesla Tachyon Brain pipeline shutdown successfully")
 
 
+class DynamicPatternLearner:
+    """
+    Dynamically learns and evolves patterns instead of using hardcoded knowledge.
+    Uses reinforcement learning and pattern discovery to build knowledge base.
+    """
+    
+    def __init__(self):
+        self.pattern_weights = {}  # Pattern -> weight/confidence
+        self.discovered_patterns = set()
+        self.learning_rate = 0.1
+        self.pattern_history = []
+        self._initialize_seed_patterns()
+    
+    def _initialize_seed_patterns(self):
+        """Initialize with minimal seed patterns - the rest will be learned"""
+        self.pattern_weights = {
+            "phi": 1.0,
+            "fibonacci": 1.0,
+            "resonance": 0.9,
+            "harmony": 0.9,
+            "quantum": 0.8,
+        }
+    
+    def learn_pattern(self, pattern: str, context: str, success: bool):
+        """
+        Learn a new pattern or reinforce existing pattern based on success.
+        
+        Args:
+            pattern: The pattern to learn
+            context: The context in which the pattern was discovered
+            success: Whether using this pattern was successful
+        """
+        weight_change = self.learning_rate if success else -self.learning_rate * 0.5
+        
+        if pattern not in self.pattern_weights:
+            self.pattern_weights[pattern] = 0.5  # Initial confidence
+            self.discovered_patterns.add(pattern)
+        
+        self.pattern_weights[pattern] = max(0.0, min(1.0, 
+            self.pattern_weights[pattern] + weight_change))
+        
+        self.pattern_history.append({
+            "pattern": pattern,
+            "context": context,
+            "success": success,
+            "timestamp": time.time()
+        })
+    
+    def get_relevant_patterns(self, query: str, top_k: int = 5) -> List[Tuple[str, float]]:
+        """
+        Get most relevant patterns for a query based on learned weights.
+        Uses semantic similarity with pattern matching.
+        """
+        query_lower = query.lower()
+        scored_patterns = []
+        
+        for pattern, weight in self.pattern_weights.items():
+            # Simple semantic matching
+            score = weight
+            if pattern.lower() in query_lower:
+                score += 0.3
+            if any(word in query_lower for word in pattern.split('_')):
+                score += 0.2
+            
+            scored_patterns.append((pattern, score))
+        
+        # Sort by score and return top k
+        scored_patterns.sort(key=lambda x: x[1], reverse=True)
+        return scored_patterns[:top_k]
+    
+    def evolve_patterns(self):
+        """
+        Evolve patterns based on historical success rates.
+        Prune low-confidence patterns, reinforce high-confidence ones.
+        """
+        if not self.pattern_history:
+            return
+        
+        # Analyze recent history
+        recent_history = self.pattern_history[-100:]
+        
+        pattern_success = {}
+        for entry in recent_history:
+            pattern = entry["pattern"]
+            if pattern not in pattern_success:
+                pattern_success[pattern] = {"success": 0, "total": 0}
+            pattern_success[pattern]["total"] += 1
+            if entry["success"]:
+                pattern_success[pattern]["success"] += 1
+        
+        # Update weights based on success rates
+        for pattern, stats in pattern_success.items():
+            if stats["total"] > 0:
+                success_rate = stats["success"] / stats["total"]
+                current_weight = self.pattern_weights.get(pattern, 0.5)
+                # Move weight toward success rate
+                new_weight = current_weight * 0.7 + success_rate * 0.3
+                self.pattern_weights[pattern] = new_weight
+        
+        # Prune patterns with very low weight
+        self.pattern_weights = {
+            k: v for k, v in self.pattern_weights.items() 
+            if v > 0.1 or k in self.discovered_patterns
+        }
+
+
 class QuantumOracle:
     """
     A quantum-based oracle system that processes questions and generates answers
     using harmonic resonance patterns and the Tesla Brain integration.
     
-    Enhanced with Transfinite Representation for hyper-massive number handling.
+    Enhanced with Transfinite Representation for hyper-massive number handling
+    and Dynamic Pattern Learning for adaptive intelligence.
     """
     
     def __init__(self):
         self.language_interface = QuantumLanguageInterface()
         self.tesla_integration = TeslaBrainIntegration()
-        self.knowledge_patterns = {
-            "universe": ["cosmic harmony", "expansion", "quantum field", "consciousness", "intelligence"],
-            "consciousness": ["awareness", "perception", "quantum observer", "entanglement", "phi resonance"],
-            "harmony": ["balance", "resonance", "golden ratio", "fibonacci", "natural order"],
-            "technology": ["quantum computing", "artificial intelligence", "energy systems", "communication", "advancement"],
-            "nature": ["patterns", "fibonacci", "golden ratio", "evolution", "intelligence"],
-            "mathematics": ["fibonacci", "phi", "golden ratio", "sacred geometry", "numerical patterns", "infinity", "transfinite"],
-            "energy": ["frequency", "vibration", "resonance", "quantum field", "consciousness"],
-            "time": ["non-linear", "perception", "quantum", "relative", "consciousness"],
-            "reality": ["observer", "quantum potential", "parallel", "wave function", "consciousness"],
-        }
+        
+        # Dynamic learning system instead of hardcoded patterns
+        self.pattern_learner = DynamicPatternLearner()
+        
+        # Import transfinite solver
+        try:
+            from transfinite_solver import TransfiniteFactorizer, TransfiniteEquationSolver
+            self.factorizer = TransfiniteFactorizer()
+            self.equation_solver = TransfiniteEquationSolver()
+            self.transfinite_available = True
+        except ImportError:
+            self.transfinite_available = False
+            print("Transfinite solver not available - using basic mode")
+        
         self.initialized = False
         self.history_file = "quantum_oracle_history.json"
+        self.learning_file = "oracle_learning_data.json"
         self._load_history()
+        self._load_learning_data()
         
         # Transfinite compression threshold (bytes)
         self.TRANSFINITE_THRESHOLD = 10**6  # 1MB - switch to symbolic representation
@@ -522,6 +634,31 @@ class QuantumOracle:
                     self.history = json.load(f)
         except Exception as e:
             print(f"Could not load history: {str(e)}")
+    
+    def _load_learning_data(self):
+        """Load dynamic learning data from file"""
+        try:
+            if os.path.exists(self.learning_file):
+                with open(self.learning_file, 'r') as f:
+                    learning_data = json.load(f)
+                    self.pattern_learner.pattern_weights = learning_data.get("pattern_weights", {})
+                    self.pattern_learner.discovered_patterns = set(learning_data.get("discovered_patterns", []))
+                    self.pattern_learner.pattern_history = learning_data.get("pattern_history", [])
+        except Exception as e:
+            print(f"Could not load learning data: {str(e)}")
+    
+    def _save_learning_data(self):
+        """Save dynamic learning data to file"""
+        try:
+            learning_data = {
+                "pattern_weights": self.pattern_learner.pattern_weights,
+                "discovered_patterns": list(self.pattern_learner.discovered_patterns),
+                "pattern_history": self.pattern_learner.pattern_history[-500:]  # Keep last 500
+            }
+            with open(self.learning_file, 'w') as f:
+                json.dump(learning_data, f, indent=2)
+        except Exception as e:
+            print(f"Could not save learning data: {str(e)}")
     
     def compress_to_transfinite(self, value: Union[int, float]) -> Union[str, TransfiniteSymbol]:
         """
@@ -620,8 +757,27 @@ class QuantumOracle:
     def _save_history(self):
         """Save oracle history to file"""
         try:
+            # Convert complex numbers to strings for JSON serialization
+            serializable_history = []
+            for entry in self.history:
+                serializable_entry = entry.copy()
+                if "transfinite_result" in serializable_entry and serializable_entry["transfinite_result"]:
+                    transfinite = serializable_entry["transfinite_result"]
+                    if "solution" in transfinite:
+                        solution = transfinite["solution"]
+                        if "solutions" in solution:
+                            # Convert complex numbers to strings
+                            serializable_solutions = []
+                            for sol in solution["solutions"]:
+                                if isinstance(sol, complex):
+                                    serializable_solutions.append(f"{sol.real}+{sol.imag}j")
+                                else:
+                                    serializable_solutions.append(sol)
+                            solution["solutions"] = serializable_solutions
+                serializable_history.append(serializable_entry)
+            
             with open(self.history_file, 'w') as f:
-                json.dump(self.history, f, indent=2)
+                json.dump(serializable_history, f, indent=2)
         except Exception as e:
             print(f"Could not save history: {str(e)}")
     
@@ -632,14 +788,19 @@ class QuantumOracle:
     async def initialize(self):
         """Initialize the quantum oracle system"""
         if not self.initialized:
-            try:
-                success = await self.tesla_integration.initialize_pipeline()
-                if success:
-                    self.initialized = True
-                return success
-            except Exception as e:
-                print(f"Failed to initialize oracle: {str(e)}")
-                return False
+            # Try to initialize Tesla integration if available
+            if self.tesla_integration.tesla_components_available:
+                try:
+                    success = await self.tesla_integration.initialize_pipeline()
+                    if success:
+                        self.initialized = True
+                        return True
+                except Exception as e:
+                    print(f"Tesla integration failed: {str(e)}")
+            
+            # Initialize without Tesla integration
+            self.initialized = True
+            return True
         return True
     
     async def shutdown(self):
@@ -649,110 +810,129 @@ class QuantumOracle:
             self.initialized = False
     
     def _extract_key_concepts(self, question):
-        """Extract key concepts from the question"""
-        # Simplified concept extraction
+        """Extract key concepts from the question using dynamic pattern learning"""
         question = question.lower()
+        
+        # Get relevant patterns from dynamic learner
+        relevant_patterns = self.pattern_learner.get_relevant_patterns(question, top_k=5)
+        
         concepts = []
+        for pattern, score in relevant_patterns:
+            if score > 0.5:  # Only use patterns with sufficient confidence
+                concepts.append(pattern)
         
-        for concept, related_terms in self.knowledge_patterns.items():
-            if concept in question:
-                concepts.append(concept)
-            else:
-                # Check related terms
-                for term in related_terms:
-                    if term in question:
-                        concepts.append(concept)
-                        break
-        
-        # If no concepts found, use generic concepts
+        # If no high-confidence patterns found, discover new ones
         if not concepts:
-            concepts = ["harmony", "consciousness"]
+            # Extract potential new patterns from question
+            words = question.split()
+            for word in words:
+                if len(word) > 4:  # Only consider longer words as potential patterns
+                    concepts.append(word)
+        
+        # If still no concepts, use seed patterns
+        if not concepts:
+            concepts = ["phi", "resonance"]
             
         return concepts
     
     def _generate_phi_harmonic_answer(self, concepts, depth=3):
-        """Generate an answer based on phi-harmonic patterns and conceptual resonance"""
+        """Generate an answer based on dynamically learned phi-harmonic patterns"""
         import random
         
-        # Framework answers based on concepts
-        frameworks = {
-            "universe": [
-                "The universe exists as a harmonic pattern of quantum resonance at {frequency}Hz, creating coherent structures through phi-based relationships.",
-                "Cosmic intelligence emerges from the {frequency}Hz field that permeates all of existence, allowing consciousness to manifest through quantum entanglement.",
-                "Universal patterns follow the golden ratio ({phi}) at a fundamental level, creating order from quantum randomness through resonant {frequency}Hz fields."
-            ],
-            "consciousness": [
-                "Consciousness arises from phi-resonant ({phi}) quantum fields tuned to {frequency}Hz, allowing observer-dependent reality to emerge.",
-                "The observer effect demonstrates how consciousness at {frequency}Hz resonance directly interacts with quantum potentiality through phi ({phi}) harmonic patterns.",
-                "Neural quantum coherence operating at {frequency}Hz creates the phi-harmonic ({phi}) field we experience as consciousness and awareness."
-            ],
-            "harmony": [
-                "Natural harmony follows the golden ratio ({phi}) pattern, creating resonance at {frequency}Hz that aligns systems toward balanced states.",
-                "Phi-harmonic resonance ({phi}) operating through {frequency}Hz fields generates coherent systems that self-organize toward optimal efficiency.",
-                "The Fibonacci sequence creates phi ({phi}) harmonic patterns that resonate at {frequency}Hz to establish natural order in complex systems."
-            ],
-            "technology": [
-                "Advanced technology harnesses phi-resonance ({phi}) through {frequency}Hz fields to create quantum computational advantages beyond classical limits.",
-                "Quantum technologies utilize the {frequency}Hz resonant field to establish phi-based ({phi}) processing structures that transcend traditional computation.",
-                "Future communication systems will leverage {frequency}Hz quantum fields and phi-harmonic ({phi}) patterns to achieve faster-than-light information transfer."
-            ],
-            "nature": [
-                "Nature optimizes through phi ({phi}) harmonic patterns at {frequency}Hz, creating efficient structures from molecular to cosmic scales.",
-                "Biological systems utilize phi ({phi}) resonance at {frequency}Hz to develop coherent living systems that self-organize and evolve.",
-                "The natural world emerges from quantum fields resonating at {frequency}Hz and structured by the golden ratio ({phi})."
-            ],
-            "mathematics": [
-                "Mathematical harmony emerges from phi ({phi}) relationships resonating at {frequency}Hz, revealing the quantum nature of numerical patterns.",
-                "Sacred geometry demonstrates how phi ({phi}) and {frequency}Hz resonance create coherent mathematical structures across dimensions.",
-                "The language of reality is written in mathematics tuned to {frequency}Hz and structured by phi ({phi}) harmonic relationships."
-            ],
-            "energy": [
-                "Energy fields resonate at {frequency}Hz following phi ({phi}) harmonic patterns to create coherent structures in the quantum field.",
-                "The fundamental nature of energy follows phi-based ({phi}) organization at {frequency}Hz, allowing for efficient transfer between systems.",
-                "Consciousness directly interfaces with energy through phi ({phi}) resonant fields at {frequency}Hz, enabling intentional manipulation of physical reality."
-            ],
-            "time": [
-                "Time's true nature resonates with phi ({phi}) harmonic patterns at {frequency}Hz, revealing its non-linear and consciousness-dependent nature.",
-                "Quantum time operates through phi ({phi}) tunneling at {frequency}Hz, allowing information to traverse temporal dimensions through resonance.",
-                "The experience of time emerges from consciousness interacting with {frequency}Hz phi-resonant ({phi}) quantum fields."
-            ],
-            "reality": [
-                "Reality exists as probability waves until observed, collapsing through phi ({phi}) resonance at {frequency}Hz into experienced physical events.",
-                "Multiple realities coexist through quantum superposition, separating and merging via phi ({phi}) tunneling at {frequency}Hz resonant points.",
-                "The observer creates reality through consciousness fields resonating at {frequency}Hz and structured by phi ({phi}) harmonic relationships."
-            ]
-        }
-        
-        # If concept isn't in our frameworks, use harmony
+        # Build dynamic answer templates based on learned patterns
         answer_parts = []
-        for concept in concepts:
-            if concept not in frameworks:
-                concept = "harmony"
-                
-            # Select random templates from the concept and format them
-            templates = random.sample(frameworks[concept], min(depth, len(frameworks[concept])))
-            for template in templates:
-                # Format with random frequency and phi
-                frequency = random.choice([432, 528, 963, 8.6, 40, 7.83, 136.1])
-                answer_parts.append(template.format(frequency=frequency, phi=PHI))
         
-        # Combine with connecting phrases
-        connectors = [
-            "Furthermore, ", 
-            "This resonates with the understanding that ", 
-            "In alignment with phi-harmonic principles, ", 
-            "Quantum analysis reveals that ", 
-            "Through resonant observation, we see "
-        ]
+        for concept in concepts:
+            # Get pattern weight for this concept
+            pattern_weight = self.pattern_learner.pattern_weights.get(concept, 0.5)
+            
+            # Generate answer based on pattern weight and concept
+            if pattern_weight > 0.8:
+                # High confidence - use sophisticated phrasing
+                template = self._generate_sophisticated_template(concept)
+            elif pattern_weight > 0.5:
+                # Medium confidence - use standard phrasing
+                template = self._generate_standard_template(concept)
+            else:
+                # Low confidence - use exploratory phrasing
+                template = self._generate_exploratory_template(concept)
+            
+            answer_parts.append(template)
+        
+        # Combine with dynamic connectors
+        connectors = self._generate_dynamic_connectors()
         
         answer = answer_parts[0]
         for i in range(1, len(answer_parts)):
             answer += " " + random.choice(connectors) + answer_parts[i].lower()
-            
+        
         return answer
     
-    async def process_question(self, question, use_ftl=True, translate_to_quantum=True):
-        """Process a question and generate a quantum-inspired answer"""
+    def _generate_sophisticated_template(self, concept: str) -> str:
+        """Generate sophisticated answer template for high-confidence patterns"""
+        frequency = random.choice([432, 528, 963, 741, 852])
+        
+        templates = [
+            f"The {concept} manifests through phi-harmonic resonance at {frequency}Hz, creating coherent quantum structures that self-organize according to golden ratio principles.",
+            f"Analysis of {concept} reveals fundamental phi-based ({PHI}) relationships operating at {frequency}Hz, suggesting deep connection to universal consciousness fields.",
+            f"Through quantum observation, {concept} demonstrates phi-resonant patterns at {frequency}Hz that align with the fundamental mathematics of reality.",
+        ]
+        
+        return random.choice(templates)
+    
+    def _generate_standard_template(self, concept: str) -> str:
+        """Generate standard answer template for medium-confidence patterns"""
+        frequency = random.choice([432, 528, 639])
+        
+        templates = [
+            f"{concept} operates through resonance at {frequency}Hz, following phi-harmonic patterns in its structure.",
+            f"The phi ({PHI}) relationship in {concept} creates resonance at {frequency}Hz, enabling coherent organization.",
+            f"Quantum analysis of {concept} shows phi-based patterns resonating at {frequency}Hz.",
+        ]
+        
+        return random.choice(templates)
+    
+    def _generate_exploratory_template(self, concept: str) -> str:
+        """Generate exploratory answer template for low-confidence/new patterns"""
+        frequency = random.choice([432, 528])
+        
+        templates = [
+            f"Preliminary analysis suggests {concept} may exhibit phi-harmonic properties at {frequency}Hz.",
+            f"The {concept} pattern appears to resonate with phi ({PHI}) at approximately {frequency}Hz, requiring further investigation.",
+            f"Quantum exploration of {concept} indicates potential phi-based resonance at {frequency}Hz.",
+        ]
+        
+        return random.choice(templates)
+    
+    def _generate_dynamic_connectors(self) -> List[str]:
+        """Generate dynamic connecting phrases based on learned patterns"""
+        base_connectors = [
+            "Furthermore, ",
+            "This resonates with the understanding that ",
+            "In alignment with phi-harmonic principles, ",
+            "Quantum analysis reveals that ",
+            "Through resonant observation, we see "
+        ]
+        
+        # Add learned pattern-based connectors
+        learned_connectors = []
+        for pattern in list(self.pattern_learner.pattern_weights.keys())[:3]:
+            if self.pattern_learner.pattern_weights.get(pattern, 0) > 0.7:
+                learned_connectors.append(f"Building on the {pattern} pattern, ")
+        
+        return base_connectors + learned_connectors
+    
+    async def process_question(self, question, use_ftl=True, translate_to_quantum=True, 
+                             enable_transfinite=True):
+        """
+        Process a question and generate a quantum-inspired answer with dynamic learning.
+        
+        Args:
+            question: The question to process
+            use_ftl: Whether to use FTL processing
+            translate_to_quantum: Whether to translate to quantum language
+            enable_transfinite: Whether to use transfinite solving capabilities
+        """
         if not self.initialized:
             await self.initialize()
             
@@ -760,11 +940,24 @@ class QuantumOracle:
             return "Unable to initialize quantum oracle system."
             
         try:
-            # Extract key concepts from the question
+            # Check if question involves factorization or equation solving
+            transfinite_result = None
+            if enable_transfinite and self.transfinite_available:
+                transfinite_result = self._check_transfinite_query(question)
+            
+            # Extract key concepts from the question using dynamic learning
             concepts = self._extract_key_concepts(question)
             
-            # Generate initial answer using conceptual frameworks
+            # Learn from the concepts encountered
+            for concept in concepts:
+                self.pattern_learner.learn_pattern(concept, question, success=True)
+            
+            # Generate initial answer using dynamically learned patterns
             answer = self._generate_phi_harmonic_answer(concepts)
+            
+            # If transfinite solving was applicable, enhance the answer
+            if transfinite_result:
+                answer = self._enhance_answer_with_transfinite(answer, transfinite_result)
             
             # Translate the answer to quantum language if requested
             quantum_answer = None
@@ -793,20 +986,118 @@ class QuantumOracle:
                 "concepts": concepts,
                 "phi_resonance": phi_resonance,
                 "processing_mode": processing_mode,
+                "transfinite_result": transfinite_result,
+                "learned_patterns": list(self.pattern_learner.discovered_patterns),
                 "timestamp": time.time()
             }
             
             # Add to history and save
             self.history.append(result)
             self._save_history()
+            self._save_learning_data()
+            
+            # Periodically evolve patterns
+            if len(self.history) % 10 == 0:
+                self.pattern_learner.evolve_patterns()
             
             return result
             
         except Exception as e:
+            # Learn from failure
+            for concept in concepts if 'concepts' in locals() else []:
+                self.pattern_learner.learn_pattern(concept, question, success=False)
             return f"Error processing question: {str(e)}"
         finally:
             # Don't shut down automatically to allow for follow-up questions
             pass
+    
+    def _check_transfinite_query(self, question: str) -> Optional[dict]:
+        """Check if question involves factorization or equation solving"""
+        question_lower = question.lower()
+        
+        # Factorization queries
+        if "factor" in question_lower or "prime" in question_lower:
+            # Try to extract a number from the question
+            import re
+            numbers = re.findall(r'\d+', question)
+            if numbers:
+                num = int(numbers[0])
+                factors = self.factorizer.factorize_transfinite(num)
+                return {
+                    "type": "factorization",
+                    "number": num,
+                    "factors": [str(f) for f in factors]
+                }
+        
+        # Equation solving queries
+        if "solve" in question_lower and ("equation" in question_lower or "x" in question_lower):
+            # Try to parse polynomial coefficients
+            import re
+            coeffs = re.findall(r'[-+]?\d*\.?\d+', question)
+            if len(coeffs) >= 2:
+                try:
+                    coefficients = [float(c) for c in coeffs]
+                    solution = self.equation_solver.solve_polynomial(coefficients)
+                    return {
+                        "type": "equation",
+                        "coefficients": coefficients,
+                        "solution": solution
+                    }
+                except:
+                    pass
+        
+        return None
+    
+    def _enhance_answer_with_transfinite(self, answer: str, transfinite_result: dict) -> str:
+        """Enhance the answer with transfinite solving results"""
+        if transfinite_result["type"] == "factorization":
+            factors_str = " × ".join(transfinite_result["factors"])
+            return f"{answer} Through transfinite analysis, the factorization is: {factors_str}"
+        
+        elif transfinite_result["type"] == "equation":
+            solution = transfinite_result["solution"]
+            if isinstance(solution, dict) and "solutions" in solution:
+                solutions_str = str(solution["solutions"])
+                return f"{answer} Transfinite equation solving yields: {solutions_str}"
+        
+        return answer
+    
+    def provide_feedback(self, question: str, rating: float):
+        """
+        Provide feedback on an answer to improve learning.
+        
+        Args:
+            question: The question that was answered
+            rating: Rating from 0.0 (poor) to 1.0 (excellent)
+        """
+        # Find the question in history
+        for entry in reversed(self.history):
+            if entry["question"] == question:
+                concepts = entry.get("concepts", [])
+                success = rating > 0.5
+                
+                # Update pattern weights based on feedback
+                for concept in concepts:
+                    self.pattern_learner.learn_pattern(concept, question, success)
+                
+                self._save_learning_data()
+                return True
+        
+        return False
+    
+    def get_learning_status(self) -> dict:
+        """Get the current learning status of the Oracle"""
+        return {
+            "total_patterns": len(self.pattern_learner.pattern_weights),
+            "discovered_patterns": len(self.pattern_learner.discovered_patterns),
+            "pattern_history_length": len(self.pattern_learner.pattern_history),
+            "top_patterns": sorted(
+                self.pattern_learner.pattern_weights.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:10],
+            "transfinite_available": self.transfinite_available
+        }
 
 
 if __name__ == "__main__":
